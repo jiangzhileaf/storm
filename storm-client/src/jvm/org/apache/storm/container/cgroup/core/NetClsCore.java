@@ -53,6 +53,10 @@ public class NetClsCore implements CgroupCore {
         CgroupUtils.writeFileByLine(CgroupUtils.getDir(this.dir, NET_CLS_CLASSID), sb.toString());
     }
 
+    public void setClassId(long decimalId) throws IOException {
+        CgroupUtils.writeFileByLine(CgroupUtils.getDir(this.dir, NET_CLS_CLASSID), String.valueOf(decimalId));
+    }
+
     public Device getClassId() throws IOException {
         String output = CgroupUtils.readFileByLine(CgroupUtils.getDir(this.dir, NET_CLS_CLASSID)).get(0);
         output = Integer.toHexString(Integer.parseInt(output));

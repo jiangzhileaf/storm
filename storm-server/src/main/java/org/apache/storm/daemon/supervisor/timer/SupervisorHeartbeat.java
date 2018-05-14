@@ -76,6 +76,8 @@ public class SupervisorHeartbeat implements Runnable {
         ret.put(Config.SUPERVISOR_MEMORY_CAPACITY_MB, mem);
         Double cpu = ObjectReader.getDouble(conf.get(Config.SUPERVISOR_CPU_CAPACITY), 400.0);
         ret.put(Config.SUPERVISOR_CPU_CAPACITY, cpu);
+        Double bandwidth = ObjectReader.getDouble(conf.get(Config.SUPERVISOR_BANDWIDTH_CAPACITY_MBPS), 512.0);
+        ret.put(Config.SUPERVISOR_BANDWIDTH_CAPACITY_MBPS, bandwidth);
 
 
         // If configs are present in Generic map and legacy - the legacy values will be overwritten

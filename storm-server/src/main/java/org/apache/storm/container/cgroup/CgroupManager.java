@@ -204,6 +204,11 @@ public class CgroupManager implements ResourceIsolationInterface {
     }
 
     @Override
+    public void reserveResourcesForWorker(String workerId, Integer workerMemory, Integer workerCpu, Integer workerBandwidth) {
+        throw new RuntimeException("unimplemented!");
+    }
+
+    @Override
     public void releaseResourcesForWorker(String workerId) {
         CgroupCommon workerGroup = new CgroupCommon(workerId, hierarchy, this.rootCgroup);
         try {

@@ -285,6 +285,12 @@ public class Config extends HashMap<String, Object> {
     @isPositiveNumber
     public static final String TOPOLOGY_WORKER_MAX_HEAP_SIZE_MB = "topology.worker.max.heap.size.mb";
     /**
+     * A per topology config that specifies the maximum amount of bandwidth a worker can use for that specific topology.
+     */
+    @isPositiveNumber
+    public static final String TOPOLOGY_WORKER_MAX_BANDWIDTH_MBPS = "topology.worker.max.bandwidth.mbps";
+
+    /**
      * The strategy to use when scheduling a topology with Resource Aware Scheduler.
      */
     @NotNull
@@ -1200,6 +1206,26 @@ public class Config extends HashMap<String, Object> {
      */
     @isPositiveNumber
     public static final String SUPERVISOR_CPU_CAPACITY = "supervisor.cpu.capacity";
+
+    /**
+     * The total amount of bandwidth (in mbps) a supervisor is allowed to give to its workers.
+     *  A default value will be set for this config if user does not override
+     */
+    @isPositiveNumber
+    public static final String SUPERVISOR_BANDWIDTH_CAPACITY_MBPS = "supervisor.bandwidth.capacity.mbps";
+
+    /**
+     *  NICs a supervisor would be control in bandwidth resource.
+     */
+    @isStringList
+    public static final String SUPERVISOR_CONTROL_NICS = "supervisor.control.NICs";
+
+    /**
+     *  tc class a supervisor would not be used in bandwidth control.
+     */
+    @isStringList
+    public static final String SUPERVISOR_TC_CLASS_EXCLUDE = "supervisor.tc.class.exclude";
+
     @isInteger
     @isPositiveNumber
     /**
@@ -1647,6 +1673,14 @@ public class Config extends HashMap<String, Object> {
 
     public static void setNumWorkers(Map<String, Object> conf, int workers) {
         conf.put(Config.TOPOLOGY_WORKERS, workers);
+    }
+
+    public static void setWorkerMaxBandwidthMbps(Map<String, Object> conf, int mbps) {
+        conf.put(Config.TOPOLOGY_WORKER_MAX_BANDWIDTH_MBPS, mbps);
+    }
+
+    public void setWorkerMaxBandwidthMbps(int mbps) {
+        setWorkerMaxBandwidthMbps(this, mbps);
     }
 
     public static void setNumAckers(Map<String, Object> conf, int numExecutors) {

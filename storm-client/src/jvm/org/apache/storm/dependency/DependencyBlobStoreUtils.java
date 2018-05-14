@@ -25,10 +25,6 @@ public class DependencyBlobStoreUtils {
 
     private static final String BLOB_DEPENDENCIES_PREFIX = "dep-";
 
-    public static String generateDependencyBlobKey(String key) {
-        return BLOB_DEPENDENCIES_PREFIX + key;
-    }
-
     public static String applyUUIDToFileName(String fileName) {
         String fileNameWithExt = com.google.common.io.Files.getNameWithoutExtension(fileName);
         String ext = com.google.common.io.Files.getFileExtension(fileName);
@@ -38,5 +34,9 @@ public class DependencyBlobStoreUtils {
             fileName = fileNameWithExt + "-" + UUID.randomUUID() + "." + ext;
         }
         return fileName;
+    }
+
+    public static String generateDependencyBlobKey(String key) {
+        return BLOB_DEPENDENCIES_PREFIX + key;
     }
 }

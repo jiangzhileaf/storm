@@ -40,6 +40,8 @@ public class ResourceNameNormalizer {
         tmp.put(Config.TOPOLOGY_COMPONENT_RESOURCES_ONHEAP_MEMORY_MB, Constants.COMMON_ONHEAP_MEMORY_RESOURCE_NAME);
         tmp.put(Config.TOPOLOGY_COMPONENT_RESOURCES_OFFHEAP_MEMORY_MB, Constants.COMMON_OFFHEAP_MEMORY_RESOURCE_NAME);
         tmp.put(Config.SUPERVISOR_MEMORY_CAPACITY_MB, Constants.COMMON_TOTAL_MEMORY_RESOURCE_NAME);
+        tmp.put(Config.TOPOLOGY_WORKER_MAX_BANDWIDTH_MBPS, Constants.COMMON_BANDWIDTH_RESOURCE_NAME);
+        tmp.put(Config.SUPERVISOR_BANDWIDTH_CAPACITY_MBPS, Constants.COMMON_BANDWIDTH_RESOURCE_NAME);
         resourceNameMapping = Collections.unmodifiableMap(tmp);
     }
 

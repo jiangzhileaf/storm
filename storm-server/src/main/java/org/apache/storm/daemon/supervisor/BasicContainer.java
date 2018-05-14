@@ -830,8 +830,9 @@ public class BasicContainer extends Container {
 
         if (_resourceIsolationManager != null) {
             final int cpu = (int) Math.ceil(resources.get_cpu());
+            final int bandwidth = (int) _conf.get(Config.TOPOLOGY_WORKER_MAX_BANDWIDTH_MBPS);
             //Save the memory limit so we can enforce it less strictly
-            _resourceIsolationManager.reserveResourcesForWorker(_workerId, (int) memoryLimitMB, cpu);
+            _resourceIsolationManager.reserveResourcesForWorker(_workerId, (int) memoryLimitMB, cpu, bandwidth);
         }
 
         List<String> commandList = mkLaunchCommand(memOnHeap, stormRoot, jlp);

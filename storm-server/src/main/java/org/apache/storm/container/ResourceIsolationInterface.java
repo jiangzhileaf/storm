@@ -40,6 +40,16 @@ public interface ResourceIsolationInterface {
     void reserveResourcesForWorker(String workerId, Integer workerMemory, Integer workerCpu);
 
     /**
+     * This function should be used prior to starting the worker to reserve resources for the worker.
+     *
+     * @param workerId worker id of the worker to start
+     * @param workerMemory the amount of memory for the worker or null if not enforced
+     * @param workerCpu the amount of cpu for the worker or null if not enforced
+     * @param workerBandwidth the amount of bandwidth for the worker or null if not enforced
+     */
+    void reserveResourcesForWorker(String workerId, Integer workerMemory, Integer workerCpu, Integer workerBandwidth);
+
+    /**
      * This function will be called when the worker needs to shutdown. This function should include logic to clean up
      * after a worker is shutdown.
      *

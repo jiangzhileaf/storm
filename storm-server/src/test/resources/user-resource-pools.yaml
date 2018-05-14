@@ -1,0 +1,5 @@
+resource.aware.scheduler.user.pools:
+    jiangzhileaf:
+        cpu: 100
+        memory: 2048
+        bandwidth: 1024

@@ -28,6 +28,7 @@ import org.apache.storm.scheduler.Cluster;
 import org.apache.storm.scheduler.ISchedulingState;
 import org.apache.storm.scheduler.SchedulerAssignment;
 import org.apache.storm.scheduler.TopologyDetails;
+import org.apache.storm.utils.ObjectReader;
 
 public class User {
     //Topologies that were deemed to be invalid
@@ -37,20 +38,22 @@ public class User {
     private String userId;
 
     public User(String userId) {
-        this(userId, 0, 0);
+        this(userId, 0, 0, 0);
     }
 
     public User(String userId, Map<String, Double> resourcePool) {
         this(
             userId,
             resourcePool == null ? 0.0 : resourcePool.getOrDefault("cpu", 0.0),
-            resourcePool == null ? 0.0 : resourcePool.getOrDefault("memory", 0.0));
+            resourcePool == null ? 0.0 : resourcePool.getOrDefault("memory", 0.0),
+            resourcePool == null ? 0.0 : resourcePool.getOrDefault("bandwidth", 0.0));
     }
 
-    private User(String userId, double cpuGuarantee, double memoryGuarantee) {
+    private User(String userId, double cpuGuarantee, double memoryGuarantee, double bandwidthGuarantee) {
         this.userId = userId;
         this.cpuGuarantee = cpuGuarantee;
         this.memoryGuarantee = memoryGuarantee;
+        this.bandwidthGuarantee = bandwidthGuarantee;
     }
 
     public String getId() {
@@ -93,11 +96,11 @@ public class User {
     public double getResourcePoolAverageUtilization(ISchedulingState cluster) {
         double cpuResourcePoolUtilization = getCpuResourcePoolUtilization(cluster);
         double memoryResourcePoolUtilization = getMemoryResourcePoolUtilization(cluster);
-
+        double bandwidthResourcePoolUtilization = getBandwidthResourcePoolUtilization(cluster);
         //cannot be (cpuResourcePoolUtilization + memoryResourcePoolUtilization)/2
         //since memoryResourcePoolUtilization or cpuResourcePoolUtilization can be Double.MAX_VALUE
         //Should not return infinity in that case
-        return ((cpuResourcePoolUtilization) / 2.0) + ((memoryResourcePoolUtilization) / 2.0);
+        return ((cpuResourcePoolUtilization) / 3.0) + ((memoryResourcePoolUtilization) / 3.0) + ((bandwidthResourcePoolUtilization) / 3.0);
     }
 
     public double getCpuResourcePoolUtilization(ISchedulingState cluster) {
@@ -114,6 +117,14 @@ public class User {
         return getMemoryResourceUsedByUser(cluster) / memoryGuarantee;
     }
 
+    public double getBandwidthResourcePoolUtilization(ISchedulingState cluster) {
+        if (bandwidthGuarantee == 0.0) {
+            return Double.MAX_VALUE;
+        }
+        return getBandwidthResourceUsedByUser(cluster) / bandwidthGuarantee;
+    }
+
+
     public double getMemoryResourceRequest(ISchedulingState cluster) {
         double sum = 0.0;
         Set<TopologyDetails> topologyDetailsSet = new HashSet<>(cluster.getTopologies().getTopologiesOwnedBy(userId));
@@ -128,6 +139,15 @@ public class User {
         Set<TopologyDetails> topologyDetailsSet = new HashSet<>(cluster.getTopologies().getTopologiesOwnedBy(userId));
         for (TopologyDetails topo : topologyDetailsSet) {
             sum += topo.getTotalRequestedCpu();
+        }
+        return sum;
+    }
+
+    public double getBandwidthResourceRequest(ISchedulingState cluster) {
+        double sum = 0.0;
+        Set<TopologyDetails> topologyDetailsSet = new HashSet<>(cluster.getTopologies().getTopologiesOwnedBy(userId));
+        for (TopologyDetails topo : topologyDetailsSet) {
+            sum += topo.getTotalRequestedBandwidth();
         }
         return sum;
     }
@@ -156,12 +176,27 @@ public class User {
         return sum;
     }
 
+    public double getBandwidthResourceUsedByUser(ISchedulingState cluster) {
+        double sum = 0.0;
+        for (TopologyDetails td : cluster.getTopologies().getTopologiesOwnedBy(userId)) {
+            SchedulerAssignment assignment = cluster.getAssignmentById(td.getId());
+            if (assignment != null) {
+                sum += ObjectReader.getInt(td.getConf().get(Config.TOPOLOGY_WORKER_MAX_BANDWIDTH_MBPS));
+            }
+        }
+        return sum;
+    }
+
     public double getMemoryResourceGuaranteed() {
         return memoryGuarantee;
     }
 
     public double getCpuResourceGuaranteed() {
         return cpuGuarantee;
+    }
+
+    public double getBandwidthResourceGuaranteed() {
+        return bandwidthGuarantee;
     }
 
     public TopologyDetails getNextTopologyToSchedule(ISchedulingState cluster) {
