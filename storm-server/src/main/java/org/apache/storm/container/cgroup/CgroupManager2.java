@@ -103,7 +103,7 @@ public class CgroupManager2 implements ResourceIsolationInterface {
 
     private void validCgroupStormHierarchyDir(SubSystemType subSystem) {
         String cgroupRootDir = DaemonConfig.getCgroupStormHierarchyDir(conf);
-        String hierarchyPath = cgroupRootDir + File.pathSeparator + subSystem.name() + File.pathSeparator + rootDir;
+        String hierarchyPath = cgroupRootDir + "/" + subSystem.name() + "/" + rootDir;
         File file = new File(hierarchyPath);
         if (!file.exists()) {
             LOG.error("{} does not exist", file.getPath());
@@ -183,7 +183,8 @@ public class CgroupManager2 implements ResourceIsolationInterface {
             String classIdPath = String.format("%s/net_cls.classid", workerGroup.getDir());
             try {
                 byte[] bytes = Files.readAllBytes(Paths.get(classIdPath));
-                long decimalId = Long.parseLong(new String(bytes));
+                String idStr = new String(bytes);
+                long decimalId = Long.parseLong(idStr.substring(0, idStr.length()-1));
                 String strId = TcClass.getIdInStr(decimalId);
                 if (usingTcClassId.contains(strId)) {
                     throw new RuntimeException("class should not be shared!");
@@ -209,8 +210,10 @@ public class CgroupManager2 implements ResourceIsolationInterface {
             Set<String> excludeTcClassIds = new HashSet<>((List<String>) conf.get(Config.SUPERVISOR_TC_CLASS_EXCLUDE));
             List<TcQdisc> qdiscs = tcManager.getTCInfo();
 
+            LOG.debug("qdiscs: {}", qdiscs);
+
             for (TcQdisc qdisc : qdiscs) {
-                if (validNICs.contains(qdisc.getNetworkCard())) {
+                if (validNICs.contains(qdisc.getNetworkCard()) && qdisc.isRoot()) {
                     for (TcClass tclass : qdisc.getClasses()) {
                         String classId = tclass.getId();
                         if (!usingTcClassId.contains(classId) && !excludeTcClassIds.contains(classId)) {
@@ -234,16 +237,18 @@ public class CgroupManager2 implements ResourceIsolationInterface {
                 return tcClass;
             }
         }
+
         throw new RuntimeException("could not find suitable tc class with match bandwidth!");
     }
 
     private void reserveBandWidthForWorker(String workerId, Integer bandwidth) {
         TcClass tcClass = findTcClassByRate(bandwidth);
 
-        CgroupCommon workerGroup = getWorkerGroup(workerId, SubSystemType.net_cls);
-        createWorkGroup(workerGroup);
-
         if(tcClass != null){
+
+            CgroupCommon workerGroup = getWorkerGroup(workerId, SubSystemType.net_cls);
+            createWorkGroup(workerGroup);
+
             NetClsCore netClsCore = (NetClsCore) workerGroup.getCores().get(SubSystemType.net_cls);
             try {
                 netClsCore.setClassId(TcClass.getIdIndecimal(tcClass.getId()));

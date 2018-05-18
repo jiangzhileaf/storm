@@ -94,17 +94,18 @@ public class TestLocalTopology {
 
         TopologyBuilder builder = new TopologyBuilder();
 
-        builder.setSpout("spout", new RandomSentenceSpout(), 2);
-        builder.setBolt("count", new WordCountBolt(), 4).shuffleGrouping("spout");
+        builder.setSpout("spout", new RandomSentenceSpout(), 1);
+        builder.setBolt("count", new WordCountBolt(), 1).shuffleGrouping("spout");
 
         conf.setDebug(true);
 
         String topologyName = "word-count";
 
         conf.setNumAckers(0);
-        conf.setNumWorkers(2);
+        conf.setNumWorkers(1);
         conf.setTopologyWorkerMaxHeapSize(768);
-        conf.setWorkerMaxBandwidthMbps(20);
+        conf.setWorkerMaxBandwidthMbps(100);
+        conf.put(Config.TOPOLOGY_SUBMITTER_USER, "jiangzhileaf");
 
         cluster.submitTopology(topologyName, conf, builder.createTopology());
 

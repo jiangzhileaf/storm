@@ -794,6 +794,15 @@ public class Cluster implements ISchedulingState {
     }
 
     @Override
+    public double getClusterTotalBandwidthResource() {
+        double sum = 0.0;
+        for (SupervisorDetails sup : supervisors.values()) {
+            sum += sup.getTotalBandwidth();
+        }
+        return sum;
+    }
+
+    @Override
     public Map<String, List<String>> getNetworkTopography() {
         return networkTopography;
     }

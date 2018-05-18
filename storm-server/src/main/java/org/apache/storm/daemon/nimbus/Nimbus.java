@@ -2842,6 +2842,8 @@ public class Nimbus implements Iface, Shutdownable, DaemonCommon {
             String topologyPrincipal = Utils.OR(submitterPrincipal, "");
             topoConf.put(Config.TOPOLOGY_SUBMITTER_PRINCIPAL, topologyPrincipal);
             String topologyOwner = Utils.OR(submitterUser, systemUser);
+            String topologyConfOwner = ObjectReader.getString(topoConf.get(Config.TOPOLOGY_SUBMITTER_USER));
+            topologyOwner = Utils.OR(topologyConfOwner, topologyConfOwner);
             topoConf.put(Config.TOPOLOGY_SUBMITTER_USER, topologyOwner); //Don't let the user set who we launch as
             topoConf.put(Config.TOPOLOGY_USERS, new ArrayList<>(topoAcl));
             topoConf.put(Config.STORM_ZOOKEEPER_SUPERACL, conf.get(Config.STORM_ZOOKEEPER_SUPERACL));

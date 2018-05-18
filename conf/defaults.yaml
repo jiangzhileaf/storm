@@ -170,6 +170,7 @@ supervisor.memory.capacity.mb: 4096.0
 # using 100 makes it simple to set the desired value to the capacity measurement
 # for single threaded bolts
 supervisor.cpu.capacity: 400.0
+supervisor.bandwidth.capacity.mbps: 100.0
 
 #Supervisor thrift config
 supervisor.thrift.port: 6628
@@ -324,6 +325,7 @@ topology.component.resources.onheap.memory.mb: 128.0
 topology.component.resources.offheap.memory.mb: 0.0
 topology.component.cpu.pcore.percent: 10.0
 topology.worker.max.heap.size.mb: 768.0
+topology.worker.max.bandwidth.mbps: 25.0
 topology.scheduler.strategy: "org.apache.storm.scheduler.resource.strategies.scheduling.DefaultResourceAwareStrategy"
 resource.aware.scheduler.priority.strategy: "org.apache.storm.scheduler.resource.strategies.priority.DefaultSchedulingPriorityStrategy"
 

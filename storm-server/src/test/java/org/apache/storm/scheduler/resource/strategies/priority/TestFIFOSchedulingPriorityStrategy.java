@@ -44,7 +44,7 @@ public class TestFIFOSchedulingPriorityStrategy {
             INimbus iNimbus = new INimbusTest();
             Map<String, SupervisorDetails> supMap = genSupervisors(4, 4, 100.0, 1000.0);
             Map<String, Map<String, Number>> resourceUserPool = userResourcePool(
-                userRes("jerry", 200.0, 2000.0));
+                new TestUserResources("jerry", 200.0, 2000.0, 2000.0));
             Config config = createClusterConfig(100, 500, 500, resourceUserPool);
             config.put(DaemonConfig.RESOURCE_AWARE_SCHEDULER_PRIORITY_STRATEGY, FIFOSchedulingPriorityStrategy.class.getName());
 
@@ -82,8 +82,8 @@ public class TestFIFOSchedulingPriorityStrategy {
             cluster = new Cluster(iNimbus, supMap, new HashMap<>(), topologies, config);
             rs.schedule(topologies, cluster);
 
-            assertTopologiesFullyScheduled(cluster, "topo-1-jerry", "topo-2-bobby", "topo-5-derek", "topo-6-bobby");
-            assertTopologiesNotScheduled(cluster, "topo-3-bobby", "topo-4-derek");
+            assertTopologiesFullyScheduled(cluster, "topo-4-derek", "topo-2-bobby", "topo-5-derek", "topo-6-bobby");
+            assertTopologiesNotScheduled(cluster, "topo-3-bobby", "topo-1-jerry");
         }
     }
 }

@@ -19,8 +19,10 @@
 package org.apache.storm.scheduler.resource.normalization;
 
 import com.google.common.annotations.VisibleForTesting;
+
 import java.util.Arrays;
 import java.util.Map;
+
 import org.apache.storm.Constants;
 import org.apache.storm.generated.WorkerResources;
 import org.slf4j.Logger;
@@ -82,6 +84,20 @@ public class NormalizedResources {
         return cpu;
     }
 
+    /**
+     * Get the total amount of bandwidth.
+     *
+     * @return the amount of bandwidth.
+     */
+    public double getTotalBandwidth() {
+        Integer index = RESOURCE_MAP_ARRAY_BRIDGE.getResourceNamesToArrayIndex(Constants.COMMON_BANDWIDTH_RESOURCE_NAME);
+        if (index == null) {
+            return 0.0;
+        } else {
+            return otherResources[index];
+        }
+    }
+
     private void zeroPadOtherResourcesIfNecessary(int requiredLength) {
         if (requiredLength > otherResources.length) {
             double[] newResources = new double[requiredLength];
@@ -123,9 +139,9 @@ public class NormalizedResources {
      */
     public void throwBecauseResourceBecameNegative(String resourceName, double currentValue, double subtractedValue) {
         throw new IllegalArgumentException(String.format("Resource amounts should never be negative."
-                                                         +
-                                                         " Resource '%s' with current value '%f' became negative because '%f' was removed.",
-                                                         resourceName, currentValue, subtractedValue));
+                        +
+                        " Resource '%s' with current value '%f' became negative because '%f' was removed.",
+                resourceName, currentValue, subtractedValue));
     }
 
     /**
@@ -206,8 +222,8 @@ public class NormalizedResources {
 
     private void throwBecauseUsedIsNotSubsetOfTotal(NormalizedResources used, double totalMemoryMb, double usedMemoryMb) {
         throw new IllegalArgumentException(String.format("The used resources must be a subset of the total resources."
-                                                         + " Used: '%s', Total: '%s', Used Mem: '%f', Total Mem: '%f'",
-                                                         used.toNormalizedMap(), this.toNormalizedMap(), usedMemoryMb, totalMemoryMb));
+                        + " Used: '%s', Total: '%s', Used Mem: '%f', Total Mem: '%f'",
+                used.toNormalizedMap(), this.toNormalizedMap(), usedMemoryMb, totalMemoryMb));
     }
 
     /**
@@ -219,15 +235,14 @@ public class NormalizedResources {
      * @param totalMemoryMb The total memory in MB
      * @param usedMemoryMb  The used memory in MB
      * @return the average percentage used 0.0 to 100.0.
-     *
      * @throws IllegalArgumentException if any resource in used has a greater value than the same resource in the total, or used has generic
      *                                  resources that are not present in the total.
      */
     public double calculateAveragePercentageUsedBy(NormalizedResources used, double totalMemoryMb, double usedMemoryMb) {
         if (LOG.isTraceEnabled()) {
             LOG.trace("Calculating avg percentage used by. Used Mem: {} Total Mem: {}"
-                      + " Used Normalized Resources: {} Total Normalized Resources: {}", totalMemoryMb, usedMemoryMb,
-                      toNormalizedMap(), used.toNormalizedMap());
+                            + " Used Normalized Resources: {} Total Normalized Resources: {}", totalMemoryMb, usedMemoryMb,
+                    toNormalizedMap(), used.toNormalizedMap());
         }
 
         int skippedResourceTypes = 0;
@@ -297,15 +312,14 @@ public class NormalizedResources {
      * @param totalMemoryMb The total memory in MB
      * @param usedMemoryMb  The used memory in MB
      * @return the minimum percentage used 0.0 to 100.0.
-     *
      * @throws IllegalArgumentException if any resource in used has a greater value than the same resource in the total, or used has generic
      *                                  resources that are not present in the total.
      */
     public double calculateMinPercentageUsedBy(NormalizedResources used, double totalMemoryMb, double usedMemoryMb) {
         if (LOG.isTraceEnabled()) {
             LOG.trace("Calculating min percentage used by. Used Mem: {} Total Mem: {}"
-                      + " Used Normalized Resources: {} Total Normalized Resources: {}", totalMemoryMb, usedMemoryMb,
-                      toNormalizedMap(), used.toNormalizedMap());
+                            + " Used Normalized Resources: {} Total Normalized Resources: {}", totalMemoryMb, usedMemoryMb,
+                    toNormalizedMap(), used.toNormalizedMap());
         }
 
         double min = 1.0;

@@ -306,6 +306,11 @@ public class Config extends HashMap<String, Object> {
     @CustomValidator(validatorClass = ListOfListOfStringValidator.class)
     public static final String TOPOLOGY_RAS_CONSTRAINTS = "topology.ras.constraints";
     /**
+     * Declare scheduling resource for a topology used by the Resource Aware Scheduler. A List of resources, cpu, memory, bandwidth.etc
+     */
+    @isStringList
+    public static final String TOPOLOGY_RAS_RESOURCES = "topology.ras.resources";
+    /**
      * Array of components that scheduler should try to place on separate hosts when using the constraint solver strategy or the
      * multi-tenant scheduler.
      */

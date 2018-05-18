@@ -134,7 +134,7 @@ public class TcClass {
         return "leaf".equals(str);
     }
 
-    public void printAsTree() {
+    public String printAsTree() {
         String lineSeparator = System.lineSeparator();
 
         StringBuilder sb = new StringBuilder();
@@ -154,6 +154,13 @@ public class TcClass {
             }
         }
 
-        System.out.println(sb.toString());
+        sb.append(lineSeparator);
+
+        return sb.toString();
+    }
+
+    @Override
+    public String toString() {
+        return printAsTree();
     }
 }

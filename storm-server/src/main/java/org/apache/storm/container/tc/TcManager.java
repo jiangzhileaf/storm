@@ -1,5 +1,7 @@
 package org.apache.storm.container.tc;
 
+import org.apache.storm.StormTimer;
+import org.apache.storm.daemon.supervisor.DefaultUncaughtExceptionHandler;
 import org.apache.storm.streams.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,6 +13,7 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * class to get tc info and cache
@@ -27,8 +30,32 @@ public class TcManager {
 
     private final static TcManager manager = new TcManager();
 
+    private final AtomicReference<List<TcQdisc>> cache;
+
+    private final StormTimer refresher;
+
+    private TcManager(){
+        this.cache = new AtomicReference<>();
+        refresh();
+        this.refresher = new StormTimer(null, new DefaultUncaughtExceptionHandler());
+
+        this.refresher.scheduleRecurring(60000, 60000, ()-> refresh());
+    }
+
     public static TcManager getInstance() {
         return manager;
+    }
+
+    public void refresh(){
+        try {
+            this.cache.set(this.getTCInfo());
+        }catch (Exception e){
+            throw new RuntimeException("could not read tc info!");
+        }
+    }
+
+    public List<TcQdisc> getCache(){
+        return this.cache.get();
     }
 
     public List<TcQdisc> getTCInfo() throws IOException {
@@ -52,7 +79,6 @@ public class TcManager {
                     } else {
                         throw new RuntimeException("get tc qdisc error!");
                     }
-                    qdisc.printAsTree();
                 }
             }
 
@@ -115,7 +141,7 @@ public class TcManager {
     }
 
     public static void main(String[] args) throws IOException {
-        TcManager.getInstance().getTCInfo();
+        System.out.println(TcManager.getInstance().getTCInfo());
     }
 
 }

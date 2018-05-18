@@ -123,11 +123,10 @@ public class TcQdisc {
         return result;
     }
 
-    public void printAsTree(){
-
+    public String printAsTree(){
         if(isRoot){
 
-            //qdisc htb 1: dev eth1 root refcnt 9 r2q 10 default 2 direct_packets_stat 3
+            String lineSeparator = System.lineSeparator();
 
             StringBuilder sb = new StringBuilder();
             sb.append("qdisc ").append(type).append(" ").append(id).append(" dev ").append(networkCard).append(" root");
@@ -135,19 +134,26 @@ public class TcQdisc {
                 sb.append(" ").append(entry.getKey()).append(" ").append(entry.getValue());
             }
 
-            System.out.println(sb.toString());
+            sb.append(lineSeparator);
 
             for(TcClass tcClass : classes){
-                tcClass.printAsTree();
+                sb.append(tcClass.printAsTree());
             }
 
-        } else {
-            System.out.println("leaf could not print as tree");
-        }
+            sb.append(lineSeparator);
 
+            return sb.toString();
+        } else {
+            return "";
+        }
     }
 
     private static boolean isRoot(String anObject) {
         return "root".equals(anObject);
+    }
+
+    @Override
+    public String toString() {
+        return printAsTree();
     }
 }

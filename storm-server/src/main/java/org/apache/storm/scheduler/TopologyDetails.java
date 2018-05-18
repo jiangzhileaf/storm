@@ -428,6 +428,16 @@ public class TopologyDetails {
     }
 
     /**
+     * Note: The public API relevant to resource aware scheduling is unstable as of May 2015. We reserve the right to change them.
+     *
+     * @return the total bandwidth requested for this topology
+     */
+    public double getTotalRequestedBandwidth() {
+        int workerBandwidth = ObjectReader.getDouble(topologyConf.get(Config.TOPOLOGY_WORKER_MAX_BANDWIDTH_MBPS)).intValue();
+        return workerBandwidth * numWorkers;
+    }
+
+    /**
      * get the resources requirements for a executor.
      *
      * @param exec
