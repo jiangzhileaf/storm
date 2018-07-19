@@ -44,6 +44,7 @@ public class MultitenantSchedulingPriorityStrategy implements ISchedulingPriorit
                 LOG.debug("SIM Scheduling {} with score of {}", td.getId(), score);
                 cpuAvail -= td.getTotalRequestedCpu();
                 memAvail -= (td.getTotalRequestedMemOffHeap() + td.getTotalRequestedMemOnHeap());
+                bandwidthAvail -= td.getTotalRequestedBandwidth();
                 allUserTopologies.add(td);
             }
         }

@@ -44,7 +44,7 @@ public class TestFIFOSchedulingPriorityStrategy {
             INimbus iNimbus = new INimbusTest();
             Map<String, SupervisorDetails> supMap = genSupervisors(4, 4, 100.0, 1000.0);
             Map<String, Map<String, Number>> resourceUserPool = userResourcePool(
-                userRes("jerry", 200.0, 2000.0));
+                new TestUserResources("jerry", 200.0, 2000.0, 2000.0));
             Config config = createClusterConfig(100, 500, 500, resourceUserPool);
             config.put(DaemonConfig.RESOURCE_AWARE_SCHEDULER_PRIORITY_STRATEGY, FIFOSchedulingPriorityStrategy.class.getName());
 
