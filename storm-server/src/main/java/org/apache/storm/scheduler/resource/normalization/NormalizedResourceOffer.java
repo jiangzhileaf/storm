@@ -108,6 +108,10 @@ public class NormalizedResourceOffer implements NormalizedResourcesWithMemory {
         return normalizedResources.getTotalCpu();
     }
 
+    public double getTotalBandwidth() {
+        return normalizedResources.getTotalBandwidth();
+    }
+
     @Override
     public NormalizedResources getNormalizedResources() {
         return normalizedResources;

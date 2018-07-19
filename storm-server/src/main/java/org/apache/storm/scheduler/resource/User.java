@@ -23,6 +23,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+
+import org.apache.storm.Config;
 import org.apache.storm.daemon.nimbus.TopologyResources;
 import org.apache.storm.scheduler.Cluster;
 import org.apache.storm.scheduler.ISchedulingState;
@@ -35,6 +37,7 @@ public class User {
     private final Set<TopologyDetails> unsuccess = new HashSet<>();
     private final double cpuGuarantee;
     private final double memoryGuarantee;
+    private final double bandwidthGuarantee;
     private String userId;
 
     public User(String userId) {
@@ -43,10 +46,10 @@ public class User {
 
     public User(String userId, Map<String, Double> resourcePool) {
         this(
-            userId,
-            resourcePool == null ? 0.0 : resourcePool.getOrDefault("cpu", 0.0),
-            resourcePool == null ? 0.0 : resourcePool.getOrDefault("memory", 0.0),
-            resourcePool == null ? 0.0 : resourcePool.getOrDefault("bandwidth", 0.0));
+                userId,
+                resourcePool == null ? 0.0 : resourcePool.getOrDefault("cpu", 0.0),
+                resourcePool == null ? 0.0 : resourcePool.getOrDefault("memory", 0.0),
+                resourcePool == null ? 0.0 : resourcePool.getOrDefault("bandwidth", 0.0));
     }
 
     private User(String userId, double cpuGuarantee, double memoryGuarantee, double bandwidthGuarantee) {
@@ -62,7 +65,7 @@ public class User {
 
     public TreeSet<TopologyDetails> getRunningTopologies(ISchedulingState cluster) {
         TreeSet<TopologyDetails> ret =
-            new TreeSet<>(new PQsortByPriorityAndSubmittionTime());
+                new TreeSet<>(new PQsortByPriorityAndSubmittionTime());
         for (TopologyDetails td : cluster.getTopologies().getTopologiesOwnedBy(userId)) {
             if (!cluster.needsSchedulingRas(td)) {
                 ret.add(td);
@@ -73,7 +76,7 @@ public class User {
 
     public TreeSet<TopologyDetails> getPendingTopologies(ISchedulingState cluster) {
         TreeSet<TopologyDetails> ret =
-            new TreeSet<>(new PQsortByPriorityAndSubmittionTime());
+                new TreeSet<>(new PQsortByPriorityAndSubmittionTime());
         for (TopologyDetails td : cluster.getTopologies().getTopologiesOwnedBy(userId)) {
             if (cluster.needsSchedulingRas(td) && !unsuccess.contains(td)) {
                 ret.add(td);
@@ -181,7 +184,8 @@ public class User {
         for (TopologyDetails td : cluster.getTopologies().getTopologiesOwnedBy(userId)) {
             SchedulerAssignment assignment = cluster.getAssignmentById(td.getId());
             if (assignment != null) {
-                sum += ObjectReader.getInt(td.getConf().get(Config.TOPOLOGY_WORKER_MAX_BANDWIDTH_MBPS));
+                int workerNum = assignment.getSlots().size();
+                sum += workerNum * ObjectReader.getDouble(td.getConf().get(Config.TOPOLOGY_WORKER_MAX_BANDWIDTH_MBPS)).intValue();
             }
         }
         return sum;

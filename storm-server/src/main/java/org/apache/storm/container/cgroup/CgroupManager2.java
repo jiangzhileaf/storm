@@ -18,6 +18,24 @@
 
 package org.apache.storm.container.cgroup;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import org.apache.storm.Config;
 import org.apache.storm.DaemonConfig;
 import org.apache.storm.container.ResourceIsolationInterface;
@@ -25,33 +43,14 @@ import org.apache.storm.container.cgroup.core.CpuCore;
 import org.apache.storm.container.cgroup.core.MemoryCore;
 import org.apache.storm.container.cgroup.core.NetClsCore;
 import org.apache.storm.container.tc.TcClass;
-import org.apache.storm.container.tc.TcManager;
+import org.apache.storm.container.tc.TcManagerInterface;
 import org.apache.storm.container.tc.TcQdisc;
 import org.apache.storm.container.tc.TcUtils;
 import org.apache.storm.utils.ObjectReader;
+import org.apache.storm.utils.ReflectionUtils;
+import org.apache.storm.utils.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Class that implements ResourceIsolationInterface that manages cgroups.
@@ -70,7 +69,9 @@ public class CgroupManager2 implements ResourceIsolationInterface {
 
     private Map<String, Object> conf;
 
-    private TcManager tcManager;
+    private TcManagerInterface tcManager;
+
+    private static final Object NET_CLS_LOCK = new Object();
 
     /**
      * initialize data structures.
@@ -79,6 +80,7 @@ public class CgroupManager2 implements ResourceIsolationInterface {
      */
     @Override
     public void prepare(Map<String, Object> conf) throws IOException {
+        LOG.info("init CgroupManager");
         this.conf = conf;
         this.rootDir = DaemonConfig.getCgroupRootDir(this.conf);
         if (this.rootDir == null) {
@@ -98,12 +100,13 @@ public class CgroupManager2 implements ResourceIsolationInterface {
         }
         this.prepareSubSystem(this.conf);
 
-        this.tcManager = TcManager.getInstance();
+        this.tcManager = ReflectionUtils.newInstance(
+                (String) conf.get(DaemonConfig.STORM_TC_MANAGER_PLUGIN));
     }
 
     private void validCgroupStormHierarchyDir(SubSystemType subSystem) {
         String cgroupRootDir = DaemonConfig.getCgroupStormHierarchyDir(conf);
-        String hierarchyPath = cgroupRootDir + File.pathSeparator + subSystem.name() + File.pathSeparator + rootDir;
+        String hierarchyPath = cgroupRootDir + "/" + subSystem.name() + "/" + rootDir;
         File file = new File(hierarchyPath);
         if (!file.exists()) {
             LOG.error("{} does not exist", file.getPath());
@@ -126,11 +129,62 @@ public class CgroupManager2 implements ResourceIsolationInterface {
             this.rootCgroups.put(subSystem, rootCgroup);
         }
 
+        validKernelSupport();
+
         // set upper limit to how much cpu can be used by all workers running on supervisor node.
         // This is done so that some cpu cycles will remain free to run the daemons and other miscellaneous OS
         // operations.
-        CpuCore supervisorRootCpu = (CpuCore) this.rootCgroups.get(SubSystemType.cpu).getCores().get(SubSystemType.cpu);
-        setCpuUsageUpperLimit(supervisorRootCpu, ((Number) this.conf.get(Config.SUPERVISOR_CPU_CAPACITY)).intValue());
+        if (subSystems.contains(SubSystemType.cpu)) {
+            CpuCore supervisorRootCpu = (CpuCore) this.rootCgroups.get(SubSystemType.cpu).getCores().get(SubSystemType.cpu);
+            setCpuUsageUpperLimit(supervisorRootCpu, ((Number) this.conf.get(Config.SUPERVISOR_CPU_CAPACITY)).intValue());
+        }
+    }
+
+    private void validKernelSupport() {
+
+        StringBuilder sb = new StringBuilder();
+
+        // check kernel enable the memory swap.
+        if (subSystems.contains(SubSystemType.memory)
+                && (boolean) this.conf.get(DaemonConfig.STORM_CGROUP_MEMORY_ENFORCEMENT_ENABLE)) {
+            MemoryCore supervisorRootMemroy = (MemoryCore) this.rootCgroups.get(SubSystemType.memory).getCores().get(SubSystemType.memory);
+            try {
+                supervisorRootMemroy.getPhysicalUsageLimit();
+            } catch (Exception e) {
+                sb.append("WARNING: No kernel memory limit support. ");
+            }
+
+            if ((boolean) this.conf.get(DaemonConfig.STORM_CGROUP_MEMORY_SWAP_LIMIT_ENABLE)) {
+                try {
+                    supervisorRootMemroy.getWithSwapUsageLimit();
+                } catch (Exception e) {
+                    sb.append("WARNING: No swap limit support. ");
+                }
+            }
+        }
+
+        if (subSystems.contains(SubSystemType.cpu)) {
+            CpuCore supervisorRootCpu = (CpuCore) this.rootCgroups.get(SubSystemType.cpu).getCores().get(SubSystemType.cpu);
+            try {
+                supervisorRootCpu.getCpuShares();
+            } catch (Exception e) {
+                sb.append("WARNING: No kernel cpu limit support. ");
+            }
+        }
+
+        if (subSystems.contains(SubSystemType.net_cls)) {
+            NetClsCore supervisorRootNetCls =
+                    (NetClsCore) this.rootCgroups.get(SubSystemType.net_cls).getCores().get(SubSystemType.net_cls);
+            try {
+                supervisorRootNetCls.getClassId();
+            } catch (Exception e) {
+                sb.append("WARNING: No kernel net_cls limit support. ");
+            }
+        }
+
+        if (sb.length() > 0) {
+            throw new RuntimeException(sb.toString());
+        }
     }
 
     private CgroupCommon getWorkerGroup(String workerId, SubSystemType subSystem) {
@@ -161,17 +215,17 @@ public class CgroupManager2 implements ResourceIsolationInterface {
 
     @Override
     public void reserveResourcesForWorker(String workerId, Integer workerMemory, Integer workerCpu, Integer workerBandwidth) {
-        LOG.info("Creating cgroup for worker {} with resources {} MB {} % CPU {} BandWidth", workerId, workerMemory, workerCpu, workerBandwidth);
+        LOG.info("Creating cgroup for worker {} with resources {} MB {} % CPU {} mbps", workerId, workerMemory, workerCpu, workerBandwidth);
 
-        if(subSystems.contains(SubSystemType.cpu)){
-            reserveCPUForWorker(workerId, workerCpu);
+        if (subSystems.contains(SubSystemType.cpu)) {
+            reserveCpuForWorker(workerId, workerCpu);
         }
 
-        if(subSystems.contains(SubSystemType.memory)){
+        if (subSystems.contains(SubSystemType.memory)) {
             reserveMemoryForWorker(workerId, workerMemory);
         }
 
-        if(subSystems.contains(SubSystemType.net_cls)) {
+        if (subSystems.contains(SubSystemType.net_cls)) {
             reserveBandWidthForWorker(workerId, workerBandwidth);
         }
     }
@@ -180,21 +234,25 @@ public class CgroupManager2 implements ResourceIsolationInterface {
         Set<String> usingTcClassId = new HashSet<>();
         CgroupCommon netClsGroup = this.rootCgroups.get(SubSystemType.net_cls);
         for (CgroupCommon workerGroup : netClsGroup.getChildren()) {
-            String classIdPath = String.format("%s/net_cls.classid", workerGroup.getDir());
             try {
-                byte[] bytes = Files.readAllBytes(Paths.get(classIdPath));
-                long decimalId = Long.parseLong(new String(bytes));
-                String strId = TcClass.getIdInStr(decimalId);
-                if (usingTcClassId.contains(strId)) {
-                    throw new RuntimeException("class should not be shared!");
-                } else {
-                    usingTcClassId.add(strId);
+                NetClsCore netClsCore = (NetClsCore) workerGroup.getCores().get(SubSystemType.net_cls);
+                Device device = netClsCore.getClassId();
+                if (device != null) {
+                    String strId = device.toString();
+                    if (usingTcClassId.contains(strId)) {
+                        LOG.error("class should not be shared!");
+                        throw new RuntimeException("class should not be shared!");
+                    } else {
+                        usingTcClassId.add(strId);
+                    }
                 }
             } catch (IOException e) {
                 throw new RuntimeException("read tc net_cls.classid error!");
             }
 
         }
+
+        LOG.info("using tc: {}", usingTcClassId);
 
         return usingTcClassId;
     }
@@ -203,57 +261,65 @@ public class CgroupManager2 implements ResourceIsolationInterface {
 
         Set<TcClass> availableTcClass = new HashSet<>();
 
-        try {
-            Set<String> usingTcClassId = findUsingTcClassId();
-            Set<String> validNICs = new HashSet<>((List<String>) conf.get(Config.SUPERVISOR_CONTROL_NICS));
-            Set<String> excludeTcClassIds = new HashSet<>((List<String>) conf.get(Config.SUPERVISOR_TC_CLASS_EXCLUDE));
-            List<TcQdisc> qdiscs = tcManager.getTCInfo();
+        Set<String> excludeNics = new HashSet((List) conf.getOrDefault(Config.SUPERVISOR_CONTROL_NICS_EXCLUDE, new ArrayList<>()));
+        Set<String> excludeTcClassIds = new HashSet((List) conf.getOrDefault(Config.SUPERVISOR_TC_CLASS_EXCLUDE, new ArrayList()));
+        List<TcQdisc> qdiscs = tcManager.getTcInfo();
+        Set<String> usingTcClassId = findUsingTcClassId();
 
-            for (TcQdisc qdisc : qdiscs) {
-                if (validNICs.contains(qdisc.getNetworkCard())) {
-                    for (TcClass tclass : qdisc.getClasses()) {
-                        String classId = tclass.getId();
-                        if (!usingTcClassId.contains(classId) && !excludeTcClassIds.contains(classId)) {
-                            availableTcClass.add(tclass);
-                        }
+        LOG.debug("qdiscs: {}", qdiscs);
+
+        for (TcQdisc qdisc : qdiscs) {
+            if (!excludeNics.contains(qdisc.getNetworkCard()) && qdisc.isRoot()) {
+                for (TcClass tclass : qdisc.getClasses()) {
+                    String classId = tclass.getId();
+                    if (!usingTcClassId.contains(classId) && !excludeTcClassIds.contains(classId)) {
+                        availableTcClass.add(tclass);
                     }
                 }
             }
-        } catch (IOException e) {
-            throw new RuntimeException("read tc qdisc info error!");
         }
+
         return availableTcClass;
     }
 
     private TcClass findTcClassByRate(Integer bandwidth) {
         Set<TcClass> availClass = getAvailableTcClass();
-        for(TcClass tcClass : availClass){
+        for (TcClass tcClass : availClass) {
             String rateStr = tcClass.getProps().get("rate");
             Integer rateMbps = TcUtils.parseRateStr(rateStr);
-            if(rateMbps == bandwidth){
+            if (rateMbps == bandwidth) {
                 return tcClass;
             }
         }
-        throw new RuntimeException("could not find suitable tc class with match bandwidth!");
+
+        throw new IllegalArgumentException("could not find suitable tc class with match bandwidth " + bandwidth + " mbps!");
     }
 
     private void reserveBandWidthForWorker(String workerId, Integer bandwidth) {
-        TcClass tcClass = findTcClassByRate(bandwidth);
 
-        CgroupCommon workerGroup = getWorkerGroup(workerId, SubSystemType.net_cls);
-        createWorkGroup(workerGroup);
+        synchronized (NET_CLS_LOCK) {
 
-        if(tcClass != null){
-            NetClsCore netClsCore = (NetClsCore) workerGroup.getCores().get(SubSystemType.net_cls);
-            try {
-                netClsCore.setClassId(TcClass.getIdIndecimal(tcClass.getId()));
-            } catch (IOException e) {
-                throw new RuntimeException("Cannot set net_cls.classid! Exception: ", e);
+            TcClass tcClass = findTcClassByRate(bandwidth);
+
+            if (tcClass != null) {
+
+                LOG.info("reserve tc class [{}] for worker [{}]", tcClass.getId(), workerId);
+
+                CgroupCommon workerGroup = getWorkerGroup(workerId, SubSystemType.net_cls);
+                createWorkGroup(workerGroup);
+
+                NetClsCore netClsCore = (NetClsCore) workerGroup.getCores().get(SubSystemType.net_cls);
+                try {
+                    netClsCore.setClassId(TcClass.getIdIndecimal(tcClass.getId()));
+                    Utils.sleep(100);
+                } catch (IOException e) {
+                    throw new RuntimeException("Cannot set net_cls.classid! Exception: ", e);
+                }
             }
         }
     }
 
-    private void reserveCPUForWorker(String workerId, Integer cpuNum) {
+    private void reserveCpuForWorker(String workerId, Integer cpuNum) {
 
         // The manually set STORM_WORKER_CGROUP_CPU_LIMIT config on supervisor will overwrite resources assigned by
         // RAS (Resource Aware Scheduler)
@@ -267,6 +333,7 @@ public class CgroupManager2 implements ResourceIsolationInterface {
         if (cpuNum != null) {
             CpuCore cpuCore = (CpuCore) workerGroup.getCores().get(SubSystemType.cpu);
             try {
+                setCpuUsageUpperLimit(cpuCore, ((Number) this.conf.get(Config.SUPERVISOR_CPU_CAPACITY)).intValue());
                 cpuCore.setCpuShares(cpuNum.intValue());
             } catch (IOException e) {
                 throw new RuntimeException("Cannot set cpu.shares! Exception: ", e);
@@ -301,12 +368,15 @@ public class CgroupManager2 implements ResourceIsolationInterface {
                 } catch (IOException e) {
                     throw new RuntimeException("Cannot set memory.limit_in_bytes! Exception: ", e);
                 }
-                // need to set memory.memsw.limit_in_bytes after setting memory.limit_in_bytes or error
-                // might occur
-                try {
-                    memCore.setWithSwapUsageLimit(memLimit);
-                } catch (IOException e) {
-                    throw new RuntimeException("Cannot set memory.memsw.limit_in_bytes! Exception: ", e);
+
+                if ((boolean) this.conf.get(DaemonConfig.STORM_CGROUP_MEMORY_SWAP_LIMIT_ENABLE)) {
+                    // need to set memory.memsw.limit_in_bytes after setting memory.limit_in_bytes or error
+                    // might occur
+                    try {
+                        memCore.setWithSwapUsageLimit(memLimit);
+                    } catch (IOException e) {
+                        throw new RuntimeException("Cannot set memory.memsw.limit_in_bytes! Exception: ", e);
+                    }
                 }
             }
         }
@@ -322,17 +392,23 @@ public class CgroupManager2 implements ResourceIsolationInterface {
 
     @Override
     public void releaseResourcesForWorker(String workerId) {
-        for (CgroupCommon rootCgroup : rootCgroups.values()) {
-            CgroupCommon workerGroup = new CgroupCommon(workerId, rootCgroup.getHierarchy(), rootCgroup);
-            try {
-                Set<Integer> tasks = workerGroup.getTasks();
-                if (!tasks.isEmpty()) {
-                    throw new Exception("Cannot correctly shutdown worker CGroup " + workerId + "tasks " + tasks
-                            + " still running!");
+        synchronized (NET_CLS_LOCK) {
+            for (SubSystemType subsystem : subSystems) {
+                CgroupCommon workerGroup = getWorkerGroup(workerId, subsystem);
+                try {
+                    if (rootCgroups.get(subsystem).getChildren().contains(workerGroup)) {
+                        Set<Integer> tasks = workerGroup.getTasks();
+                        if (!tasks.isEmpty()) {
+                            throw new Exception("Cannot correctly shutdown worker CGroup " + workerId + "tasks " + tasks
+                                    + " still running!");
+                        }
+                        this.center.deleteCgroup(workerGroup);
+                    } else {
+                        LOG.warn("Cannot find worker group {}-{} in release", subsystem, workerId);
+                    }
+                } catch (Exception e) {
+                    LOG.error("Exception thrown when shutting worker {} Exception: {}", workerId, e);
                 }
-                this.center.deleteCgroup(workerGroup);
-            } catch (Exception e) {
-                LOG.error("Exception thrown when shutting worker {} Exception: {}", workerId, e);
             }
         }
     }
@@ -374,27 +450,32 @@ public class CgroupManager2 implements ResourceIsolationInterface {
 
             if (!this.rootCgroups.get(subSystem).getChildren().contains(workerGroup)) {
                 throw new RuntimeException(
-                        "cgroup " + workerGroup + " doesn't exist! Need to reserve resources for worker first!");
+                        "cgroup " + subSystem + workerGroup + " doesn't exist! Need to reserve resources for worker first!");
             }
         }
     }
 
     @Override
     public Set<Long> getRunningPids(String workerId) throws IOException {
-        SubSystemType indexSubSystem = this.subSystems.get(0);
-        CgroupCommon workerGroup = getWorkerGroup(workerId, indexSubSystem);
-        if (!this.rootCgroups.get(indexSubSystem).getChildren().contains(workerGroup)) {
-            LOG.warn("cgroup {} doesn't exist!", workerGroup);
-            return Collections.emptySet();
+        Set<Long> ret = new HashSet<>();
+        for (SubSystemType sub : subSystems) {
+            CgroupCommon workerGroup = getWorkerGroup(workerId, sub);
+            if (rootCgroups.get(sub).getChildren().contains(workerGroup)) {
+                ret.addAll(workerGroup.getPids());
+            }
         }
-        return workerGroup.getPids();
+        return ret;
     }
 
     @Override
     public long getMemoryUsage(String workerId) throws IOException {
-        CgroupCommon workerGroup = getWorkerGroup(workerId, SubSystemType.memory);
-        MemoryCore memCore = (MemoryCore) workerGroup.getCores().get(SubSystemType.memory);
-        return memCore.getPhysicalUsage();
+        if (subSystems.contains(SubSystemType.memory)) {
+            CgroupCommon workerGroup = getWorkerGroup(workerId, SubSystemType.memory);
+            MemoryCore memCore = (MemoryCore) workerGroup.getCores().get(SubSystemType.memory);
+            return memCore.getPhysicalUsage();
+        } else {
+            return 0;
+        }
     }
 
     private static final Pattern MEMINFO_PATTERN = Pattern.compile("^([^:\\s]+):\\s*([0-9]+)\\s*kB$");
@@ -430,12 +511,14 @@ public class CgroupManager2 implements ResourceIsolationInterface {
     public long getSystemFreeMemoryMb() throws IOException {
         long rootCgroupLimitFree = Long.MAX_VALUE;
         try {
-            MemoryCore memRoot = (MemoryCore) rootCgroups.get(SubSystemType.memory).getCores().get(SubSystemType.memory);
-            if (memRoot != null) {
-                //For cgroups no limit is max long.
-                long limit = memRoot.getPhysicalUsageLimit();
-                long used = memRoot.getMaxPhysicalUsage();
-                rootCgroupLimitFree = (limit - used) / 1024 / 1024;
+            if (subSystems.contains(SubSystemType.memory)) {
+                MemoryCore memRoot = (MemoryCore) rootCgroups.get(SubSystemType.memory).getCores().get(SubSystemType.memory);
+                if (memRoot != null) {
+                    //For cgroups no limit is max long.
+                    long limit = memRoot.getPhysicalUsageLimit();
+                    long used = memRoot.getMaxPhysicalUsage();
+                    rootCgroupLimitFree = (limit - used) / 1024 / 1024;
+                }
             }
         } catch (FileNotFoundException e) {
             //Ignored if cgroups is not setup don't do anything with it

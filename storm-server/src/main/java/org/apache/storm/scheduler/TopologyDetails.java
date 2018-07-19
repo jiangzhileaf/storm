@@ -427,6 +427,11 @@ public class TopologyDetails {
         return totalCpu;
     }
 
+    public double getTotalRequestedBandwidth() {
+        int workerBandwidth = ObjectReader.getDouble(topologyConf.get(Config.TOPOLOGY_WORKER_MAX_BANDWIDTH_MBPS)).intValue();
+        return workerBandwidth * numWorkers;
+    }
+
     /**
      * get the resources requirements for a executor.
      *

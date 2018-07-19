@@ -1,9 +1,5 @@
 package org.apache.storm.container.tc;
 
-import org.apache.storm.streams.Pair;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -11,27 +7,64 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+
+import org.apache.storm.StormTimer;
+import org.apache.storm.daemon.supervisor.DefaultUncaughtExceptionHandler;
+import org.apache.storm.streams.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * class to get tc info and cache
- * provide the tc info to cgroupManager to control the bandwidth
- * <p>
- * support multi-NIC
+ * class to get tc info and cache.
+ * provide the tc info to cgroupManager to control the bandwidth.
+ * support multi-NIC.
  */
-public class TcManager {
+public class TcManager implements TcManagerInterface {
 
-    private final static Logger LOG = LoggerFactory.getLogger(TcManager.class);
+    private static final Logger LOG = LoggerFactory.getLogger(TcManager.class);
 
-    private final static List<String> QDISC_SHOW_CMD = Arrays.asList("tc", "qdisc", "show");
-    private final static List<String> CLASS_SHOW_CMD_PATTERN = Arrays.asList("tc", "class", "show", "dev");
+    private static final List<String> QDISC_SHOW_CMD = Arrays.asList("tc", "qdisc", "show");
+    private static final List<String> CLASS_SHOW_CMD_PATTERN = Arrays.asList("tc", "class", "show", "dev");
 
-    private final static TcManager manager = new TcManager();
+    private final AtomicReference<List<TcQdisc>> cache;
 
-    public static TcManager getInstance() {
-        return manager;
+    private final StormTimer refresher;
+
+    /**
+     * default constructor.
+     */
+    public TcManager() {
+        this.cache = new AtomicReference<>();
+        this.cache.set(new ArrayList<>());
+        refresh();
+        this.refresher = new StormTimer(null, new DefaultUncaughtExceptionHandler());
+        this.refresher.scheduleRecurring(60000, 60000, () -> refresh());
     }
 
-    public List<TcQdisc> getTCInfo() throws IOException {
+    /**
+     * refresh cache.
+     */
+    public void refresh() {
+        try {
+            this.cache.set(this.getTcInfoFromCmd());
+        } catch (Exception e) {
+            LOG.error("could not read tc info!", e);
+        }
+    }
+
+    /**
+     * get cache.
+     */
+    public List<TcQdisc> getTcInfo() {
+        return this.cache.get();
+    }
+
+    /**
+     * get tc info through cmd.
+     */
+    public List<TcQdisc> getTcInfoFromCmd() throws IOException {
 
         List<TcQdisc> qdiscs;
 
@@ -52,7 +85,6 @@ public class TcManager {
                     } else {
                         throw new RuntimeException("get tc qdisc error!");
                     }
-                    qdisc.printAsTree();
                 }
             }
 
@@ -63,6 +95,9 @@ public class TcManager {
         }
     }
 
+    /**
+     * run cmd.
+     */
     public static Pair<Integer, String> exec(List<String> command, final long timeout) throws IOException {
         ProcessBuilder builder = new ProcessBuilder(command);
         builder.redirectErrorStream(true);
@@ -75,7 +110,7 @@ public class TcManager {
                 try {
                     Thread.sleep(timeout);
                 } catch (InterruptedException e) {
-
+                    e.printStackTrace();
                 }
                 if (p != null) {
                     p.destroy();
@@ -113,9 +148,4 @@ public class TcManager {
             }
         }
     }
-
-    public static void main(String[] args) throws IOException {
-        TcManager.getInstance().getTCInfo();
-    }
-
 }

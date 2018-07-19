@@ -8,39 +8,39 @@ import java.util.Map;
 
 public class TcQdisc {
 
+    private static final String ROOT = "root";
+
     private String id;
     private String type;
     private String networkCard;
     private Boolean isRoot;
-    private Map<String,String> props;
+    private Map<String, String> props;
 
     private List<TcClass> classes;
 
-    public TcQdisc() {}
+    public TcQdisc() {
+    }
 
     public String getId() {
         return id;
     }
 
-    public static void main(String[] args) {
-        TcQdisc q = new TcQdisc();
-        q.setId("1:4");
-        System.out.println(q.getIdIndecimal());
-    }
-
+    /**
+     * get id in decimal.
+     */
     public Integer getIdIndecimal() {
 
         String[] ids = id.split(":");
         String major = ids[0];
         String minor = ids[1];
 
-        if(minor.isEmpty()){
-            BigInteger a = new BigInteger(major);
+        if (minor.isEmpty()) {
+            BigInteger a = new BigInteger(major, 16);
             a.shiftLeft(16);
             return a.intValue();
-        }else{
-            BigInteger a = new BigInteger(major);
-            BigInteger i = new BigInteger(minor);
+        } else {
+            BigInteger a = new BigInteger(major, 16);
+            BigInteger i = new BigInteger(minor, 16);
             a = a.shiftLeft(16);
             return a.intValue() + i.intValue();
         }
@@ -90,24 +90,28 @@ public class TcQdisc {
         isRoot = root;
     }
 
+    /**
+     * parse the cmd result to object.
+     */
     public static List<TcQdisc> parse(String qdiscArrayStr) {
 
         String[] qdiscStrs = qdiscArrayStr.split(System.lineSeparator());
         List<TcQdisc> result = new ArrayList<>();
 
-        for(String qdiscStr : qdiscStrs){
+        for (String qdiscStr : qdiscStrs) {
             String[] field = qdiscStr.split(" ");
+
+            boolean isRoot = ROOT.equals(field[5]);
+
+            Map<String, String> props = new LinkedHashMap<>();
+            int propStartIndex = isRoot ? 7 : 8;
+            for (int i = propStartIndex; i < field.length; i = i + 2) {
+                props.put(field[i - 1], field[i]);
+            }
 
             String type = field[1];
             String id = field[2];
             String networkCard = field[4];
-            boolean isRoot = isRoot(field[5]);
-
-            Map<String,String> props = new LinkedHashMap<>();
-            int propStartIndex = isRoot ? 6 : 7;
-            for(int i=propStartIndex ; i<field.length; i=i+2){
-                props.put(field[i],field[i+1]);
-            }
 
             TcQdisc qdisc = new TcQdisc();
             qdisc.setId(id);
@@ -123,31 +127,36 @@ public class TcQdisc {
         return result;
     }
 
-    public void printAsTree(){
+    /**
+     * convert object to string in tree.
+     */
+    public String printAsTree() {
+        if (isRoot) {
 
-        if(isRoot){
-
-            //qdisc htb 1: dev eth1 root refcnt 9 r2q 10 default 2 direct_packets_stat 3
+            String lineSeparator = System.lineSeparator();
 
             StringBuilder sb = new StringBuilder();
             sb.append("qdisc ").append(type).append(" ").append(id).append(" dev ").append(networkCard).append(" root");
-            for(Map.Entry<String,String> entry: props.entrySet()) {
+            for (Map.Entry<String, String> entry : props.entrySet()) {
                 sb.append(" ").append(entry.getKey()).append(" ").append(entry.getValue());
             }
 
-            System.out.println(sb.toString());
+            sb.append(lineSeparator);
 
-            for(TcClass tcClass : classes){
-                tcClass.printAsTree();
+            for (TcClass tcClass : classes) {
+                sb.append(tcClass.printAsTree());
             }
 
-        } else {
-            System.out.println("leaf could not print as tree");
-        }
+            sb.append(lineSeparator);
 
+            return sb.toString();
+        } else {
+            return "";
+        }
     }
 
-    private static boolean isRoot(String anObject) {
-        return "root".equals(anObject);
+    @Override
+    public String toString() {
+        return printAsTree();
     }
 }

@@ -18,18 +18,6 @@
 
 package org.apache.storm;
 
-import java.util.ArrayList;
-import java.util.Map;
-import org.apache.storm.container.ResourceIsolationInterface;
-import org.apache.storm.nimbus.ITopologyActionNotifierPlugin;
-import org.apache.storm.scheduler.blacklist.reporters.IReporter;
-import org.apache.storm.scheduler.blacklist.strategies.IBlacklistStrategy;
-import org.apache.storm.scheduler.resource.strategies.priority.ISchedulingPriorityStrategy;
-import org.apache.storm.scheduler.resource.strategies.scheduling.IStrategy;
-import org.apache.storm.security.auth.IAuthorizer;
-import org.apache.storm.validation.ConfigValidation;
-import org.apache.storm.validation.Validated;
-
 import static org.apache.storm.validation.ConfigValidationAnnotations.NotNull;
 import static org.apache.storm.validation.ConfigValidationAnnotations.isBoolean;
 import static org.apache.storm.validation.ConfigValidationAnnotations.isImplementationOfClass;
@@ -43,6 +31,20 @@ import static org.apache.storm.validation.ConfigValidationAnnotations.isPositive
 import static org.apache.storm.validation.ConfigValidationAnnotations.isString;
 import static org.apache.storm.validation.ConfigValidationAnnotations.isStringList;
 import static org.apache.storm.validation.ConfigValidationAnnotations.isStringOrStringList;
+
+import java.util.ArrayList;
+import java.util.Map;
+
+import org.apache.storm.container.ResourceIsolationInterface;
+import org.apache.storm.container.tc.TcManagerInterface;
+import org.apache.storm.nimbus.ITopologyActionNotifierPlugin;
+import org.apache.storm.scheduler.blacklist.reporters.IReporter;
+import org.apache.storm.scheduler.blacklist.strategies.IBlacklistStrategy;
+import org.apache.storm.scheduler.resource.strategies.priority.ISchedulingPriorityStrategy;
+import org.apache.storm.scheduler.resource.strategies.scheduling.IStrategy;
+import org.apache.storm.security.auth.IAuthorizer;
+import org.apache.storm.validation.ConfigValidation;
+import org.apache.storm.validation.Validated;
 
 /**
  * Storm configs are specified as a plain old map. This class provides constants for all the configurations possible on a Storm cluster.
@@ -887,6 +889,12 @@ public class DaemonConfig implements Validated {
     public static final String NIMBUS_CODE_SYNC_FREQ_SECS = "nimbus.code.sync.freq.secs";
 
     /**
+     * The plugin to be used to get tc info.
+     */
+    @isImplementationOfClass(implementsClass = TcManagerInterface.class)
+    public static final String STORM_TC_MANAGER_PLUGIN = "storm.tc.manager.plugin";
+
+    /**
      * The plugin to be used for resource isolation.
      */
     @isImplementationOfClass(implementsClass = ResourceIsolationInterface.class)
@@ -1011,6 +1019,11 @@ public class DaemonConfig implements Validated {
      */
     @isBoolean
     public static String STORM_CGROUP_MEMORY_ENFORCEMENT_ENABLE = "storm.cgroup.memory.enforcement.enable";
+    /**
+     * Cgroup memory swap limit support is base on kernel, provide control to disable it.
+     */
+    @isBoolean
+    public static String STORM_CGROUP_MEMORY_SWAP_LIMIT_ENABLE = "storm.cgroup.memory.swap.limit.enable";
     /**
      * Memory given to each worker for free (because java and storm have some overhead). This is memory on the box that the workers can use.
      * This should not be included in SUPERVISOR_MEMORY_CAPACITY_MB, as nimbus does not use this memory for scheduling.

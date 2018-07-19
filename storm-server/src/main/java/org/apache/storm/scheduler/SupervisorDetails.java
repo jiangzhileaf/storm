@@ -153,6 +153,13 @@ public class SupervisorDetails {
     }
 
     /**
+     * Get the total Bandwidth on this supervisor in Mbps.
+     */
+    public double getTotalBandwidth() {
+        return totalResources.getTotalBandwidth();
+    }
+
+    /**
      * Get all resources for this Supervisor.
      */
     public NormalizedResourceOffer getTotalResources() {

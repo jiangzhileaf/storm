@@ -686,7 +686,8 @@ public class ServerUtils {
      */
     public static boolean isRAS(Map<String, Object> conf) {
         if (conf.containsKey(DaemonConfig.STORM_SCHEDULER)) {
-            if (conf.get(DaemonConfig.STORM_SCHEDULER).equals("org.apache.storm.scheduler.resource.ResourceAwareScheduler")) {
+            if (conf.get(DaemonConfig.STORM_SCHEDULER).equals("org.apache.storm.scheduler.resource.ResourceAwareScheduler")
+                    || conf.get(DaemonConfig.STORM_SCHEDULER).equals("org.apache.storm.scheduler.resource.MultitenantResourceAwareScheduler")) {
                 return true;
             }
         }
@@ -695,8 +696,8 @@ public class ServerUtils {
 
     public static int getEstimatedWorkerCountForRASTopo(Map<String, Object> topoConf, StormTopology topology)
         throws InvalidTopologyException {
-        return (int) Math.ceil(getEstimatedTotalHeapMemoryRequiredByTopo(topoConf, topology) /
-                               ObjectReader.getDouble(topoConf.get(Config.WORKER_HEAP_MEMORY_MB)));
+        return (int) Math.ceil(getEstimatedTotalHeapMemoryRequiredByTopo(topoConf, topology)
+                / ObjectReader.getDouble(topoConf.get(Config.WORKER_HEAP_MEMORY_MB)));
     }
 
     public static double getEstimatedTotalHeapMemoryRequiredByTopo(Map<String, Object> topoConf, StormTopology topology)
