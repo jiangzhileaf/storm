@@ -933,6 +933,11 @@ public class Config extends HashMap<String, Object> {
     @isString
     public static final String NIMBUS_THRIFT_TRANSPORT_PLUGIN = "nimbus.thrift.transport";
     /**
+     * Which ip the Thrift interface of Nimbus should run on. Clients should connect to this ip to upload jars and submit topologies.
+     */
+    @isString
+    public static final String NIMBUS_THRIFT_HOST = "nimbus.thrift.host";
+    /**
      * Which port the Thrift interface of Nimbus should run on. Clients should connect to this port to upload jars and submit topologies.
      */
     @isInteger
@@ -1201,6 +1206,12 @@ public class Config extends HashMap<String, Object> {
      */
     @isPositiveNumber
     public static final String SUPERVISOR_CPU_CAPACITY = "supervisor.cpu.capacity";
+    /**
+     * Host used for supervisor thrift server.
+     */
+    @isString
+    public static final String SUPERVISOR_THRIFT_HOST = "supervisor.thrift.host";
+
     @isInteger
     @isPositiveNumber
     /**
@@ -1251,6 +1262,11 @@ public class Config extends HashMap<String, Object> {
      */
     @isString
     public static final String STORM_MESSAGING_TRANSPORT = "storm.messaging.transport";
+    /**
+     * Netty based messaging: host binding for netty server.
+     */
+    @isBoolean
+    public static final String STORM_MESSAGING_NETTY_SERVER_HOST = "storm.messaging.netty.server.host";
     /**
      * Netty based messaging: Is authentication required for Netty messaging from client worker process to server worker process.
      */

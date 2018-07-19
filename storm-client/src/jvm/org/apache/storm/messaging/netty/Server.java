@@ -12,7 +12,9 @@
 
 package org.apache.storm.messaging.netty;
 
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -99,12 +101,29 @@ class Server extends ConnectionWithStatus implements IStatefulObject, ISaslServe
 
         // Bind and start to accept incoming connections.
         try {
-            ChannelFuture bindFuture = bootstrap.bind(new InetSocketAddress(port)).sync();
+            ChannelFuture bindFuture = bootstrap.bind(getBindAddr(topoConf, port)).sync();
             Channel channel = bindFuture.channel();
             boundPort = ((InetSocketAddress) channel.localAddress()).getPort();
             allChannels.add(channel);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    private InetSocketAddress getBindAddr(Map<String, Object> topoConf, int port) {
+        InetAddress addr;
+
+        try {
+            String bindHost = (String) topoConf.get(Config.STORM_MESSAGING_NETTY_SERVER_HOST);
+            if (bindHost == null || bindHost.isEmpty()) {
+                addr = InetAddress.getLocalHost();
+            } else {
+                addr = InetAddress.getByName(bindHost);
+            }
+
+            return new InetSocketAddress(addr, port);
+        } catch (UnknownHostException e) {
+            throw new RuntimeException("init netty server bind address error!", e);
         }
     }
 
