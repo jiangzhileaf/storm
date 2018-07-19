@@ -582,6 +582,10 @@ public class AsyncLocalizer implements AutoCloseable {
         toClean.addResources(topologyBlobs);
         try (ClientBlobStore store = getClientBlobStore()) {
             toClean.cleanup(store);
+        } catch (NimbusLeaderNotFoundException e) {
+            LOG.error("Nimbus unavailable to cleanup blobs, will retry again later", e);
+        } catch (Exception e) {
+            LOG.error("unknown error, will retry again later", e);
         }
 
         HashSet<String> safeTopologyIds = new HashSet<>();
