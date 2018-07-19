@@ -2460,7 +2460,7 @@ public class Nimbus implements Iface, Shutdownable, DaemonCommon {
     @VisibleForTesting
     public void doCleanup() throws Exception {
         if (!isLeader()) {
-            LOG.info("not a leader, skipping cleanup");
+            LOG.debug("not a leader, skipping cleanup");
             return;
         }
         IStormClusterState state = stormClusterState;
