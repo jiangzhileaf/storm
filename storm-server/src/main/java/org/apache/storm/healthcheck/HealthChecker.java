@@ -71,7 +71,7 @@ public class HealthChecker {
             LOG.warn("The supervisor healthchecks failed!!!");
             return 1;
         } else {
-            LOG.info("The supervisor healthchecks succeeded.");
+            LOG.debug("The supervisor healthchecks succeeded.");
             return 0;
         }
 

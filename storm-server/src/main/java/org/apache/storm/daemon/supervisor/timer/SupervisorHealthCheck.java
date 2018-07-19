@@ -35,7 +35,7 @@ public class SupervisorHealthCheck implements Runnable {
     @Override
     public void run() {
         Map<String, Object> conf = supervisor.getConf();
-        LOG.info("Running supervisor healthchecks...");
+        LOG.debug("Running supervisor healthchecks...");
         int healthCode = HealthChecker.healthCheck(conf);
         if (healthCode != 0) {
             LOG.info("The supervisor healthchecks FAILED...");
