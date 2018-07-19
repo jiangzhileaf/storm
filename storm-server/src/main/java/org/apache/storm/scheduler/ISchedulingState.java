@@ -253,6 +253,11 @@ public interface ISchedulingState {
     double getClusterTotalMemoryResource();
 
     /**
+     * Get the total amount of bandwidth resources in cluster.
+     */
+    double getClusterTotalBandwidthResource();
+
+    /**
      * Get the network topography (rackId -> nodes in the rack).
      */
     Map<String, List<String>> getNetworkTopography();

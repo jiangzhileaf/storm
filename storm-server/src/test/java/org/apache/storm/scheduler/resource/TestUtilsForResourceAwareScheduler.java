@@ -75,6 +75,13 @@ public class TestUtilsForResourceAwareScheduler {
             resources.put("memory", mem);
         }
 
+        public TestUserResources(String name, double cpu, double mem, double bandwidth) {
+            this.name = name;
+            resources.put("cpu", cpu);
+            resources.put("memory", mem);
+            resources.put("bandwidth", bandwidth);
+        }
+
         public void addSelfTo(Map<String, Map<String, Number>> fullPool) {
             if (fullPool.put(name, resources) != null) {
                 throw new IllegalStateException("Cannot have 2 copies of " + name + " in a pool");
@@ -404,6 +411,25 @@ public class TestUtilsForResourceAwareScheduler {
         }
     }
 
+    public static Map<String, User> getUserMap(Map<String, Map<String, Number>> userResourcePools, Cluster cluster) {
+
+        Map<String, User> userMap = new HashMap<>();
+        LOG.debug("userResourcePools: {}", userResourcePools);
+
+        for (TopologyDetails td : cluster.getTopologies()) {
+            String topologySubmitter = td.getTopologySubmitter();
+            //additional safety check to make sure that topologySubmitter is going to be a valid value
+            if (topologySubmitter == null || topologySubmitter.equals("")) {
+                LOG.error("Cannot determine user for topology {}.  Will skip scheduling this topology", td.getName());
+                continue;
+            }
+            if (!userMap.containsKey(topologySubmitter)) {
+                userMap.put(topologySubmitter, new User(topologySubmitter, (Map) userResourcePools.get(topologySubmitter)));
+            }
+        }
+        return userMap;
+    }
+
     private static boolean isContain(String source, String subItem) {
         String pattern = "\\b" + subItem + "\\b";
         Pattern p = Pattern.compile(pattern, Pattern.CASE_INSENSITIVE);
@@ -422,6 +448,15 @@ public class TestUtilsForResourceAwareScheduler {
             assert (!isStatusSuccess(status)) : topoName;
             assert (cluster.getAssignmentById(topoId) == null) : topoName;
             assert (cluster.needsSchedulingRas(td)) : topoName;
+        }
+    }
+
+    public static void assertTopologiesOrder(List<TopologyDetails> tds, String... topoNames) {
+
+        assert (tds.size() == topoNames.length) : "size";
+
+        for (int i=0; i<tds.size(); i++) {
+            assert tds.get(i).getName().equals(topoNames[i]) : topoNames[i];
         }
     }
 

@@ -23,7 +23,7 @@ import java.util.Set;
 public interface ResourceIsolationInterface {
 
     /**
-     * Called when starting up
+     * Called when starting up.
      *
      * @param conf the cluster config
      * @throws IOException on any error.
@@ -38,6 +38,16 @@ public interface ResourceIsolationInterface {
      * @param workerCpu the amount of cpu for the worker or null if not enforced
      */
     void reserveResourcesForWorker(String workerId, Integer workerMemory, Integer workerCpu);
+
+    /**
+     * This function should be used prior to starting the worker to reserve resources for the worker.
+     *
+     * @param workerId worker id of the worker to start
+     * @param workerMemory the amount of memory for the worker or null if not enforced
+     * @param workerCpu the amount of cpu for the worker or null if not enforced
+     * @param workerBandwidth the amount of bandwidth for the worker or null if not enforced
+     */
+    void reserveResourcesForWorker(String workerId, Integer workerMemory, Integer workerCpu, Integer workerBandwidth);
 
     /**
      * This function will be called when the worker needs to shutdown. This function should include logic to clean up
@@ -85,6 +95,8 @@ public interface ResourceIsolationInterface {
     long getMemoryUsage(String workerId) throws IOException;
 
     /**
+     * Get the current system free memory.
+     *
      * @return The amount of memory in bytes that are free on the system. This might not be the entire box, it might be
      *     within a parent resource group.
      * @throws IOException on any error.

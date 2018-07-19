@@ -94,4 +94,8 @@ public class ResourceMapArrayBridge {
         return Collections.unmodifiableMap(resourceNamesToArrayIndex);
     }
 
+    public Integer getResourceNamesToArrayIndex(String name) {
+        return resourceNamesToArrayIndex.get(name);
+    }
+
 }

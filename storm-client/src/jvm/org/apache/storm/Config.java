@@ -19,11 +19,13 @@
 package org.apache.storm;
 
 import com.esotericsoftware.kryo.Serializer;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 import org.apache.storm.metric.IEventLogger;
 import org.apache.storm.policy.IWaitStrategy;
 import org.apache.storm.serialization.IKryoDecorator;
@@ -41,6 +43,7 @@ import org.apache.storm.validation.ConfigValidationAnnotations.isImplementationO
 import org.apache.storm.validation.ConfigValidationAnnotations.isInteger;
 import org.apache.storm.validation.ConfigValidationAnnotations.isKryoReg;
 import org.apache.storm.validation.ConfigValidationAnnotations.isListEntryCustom;
+import org.apache.storm.validation.ConfigValidationAnnotations.isListEntryType;
 import org.apache.storm.validation.ConfigValidationAnnotations.isMapEntryCustom;
 import org.apache.storm.validation.ConfigValidationAnnotations.isMapEntryType;
 import org.apache.storm.validation.ConfigValidationAnnotations.isNumber;
@@ -285,6 +288,15 @@ public class Config extends HashMap<String, Object> {
     @isPositiveNumber
     public static final String TOPOLOGY_WORKER_MAX_HEAP_SIZE_MB = "topology.worker.max.heap.size.mb";
     /**
+     * A per topology config that specifies the maximum amount of bandwidth a worker can use for that specific topology.
+     */
+    @isPositiveNumber
+    public static final String TOPOLOGY_WORKER_MAX_BANDWIDTH_MBPS = "topology.worker.max.bandwidth.mbps";
+
+    @isListEntryType(type = Number.class)
+    public static final String TOPOLOGY_WORKER_ACCEPT_BANDWIDTH_MBPS = "topology.worker.accept.bandwidth.mbps";
+
+    /**
      * The strategy to use when scheduling a topology with Resource Aware Scheduler.
      */
     @NotNull
@@ -299,6 +311,11 @@ public class Config extends HashMap<String, Object> {
      */
     @CustomValidator(validatorClass = ListOfListOfStringValidator.class)
     public static final String TOPOLOGY_RAS_CONSTRAINTS = "topology.ras.constraints";
+    /**
+     * Declare scheduling resource for a topology used by the Resource Aware Scheduler. A List of resources, cpu, memory.etc
+     */
+    @isStringList
+    public static final String TOPOLOGY_RAS_RESOURCES = "topology.ras.resources";
     /**
      * Array of components that scheduler should try to place on separate hosts when using the constraint solver strategy or the
      * multi-tenant scheduler.
@@ -616,8 +633,8 @@ public class Config extends HashMap<String, Object> {
     @NotNull
     public static final String TOPOLOGY_EXECUTOR_OVERFLOW_LIMIT = "topology.executor.overflow.limit";
     /**
-     * How often a worker should check and notify upstream workers about its tasks that are no longer experiencing BP and able to receive
-     * new messages
+     * How often a worker should check and notify upstream workers about its tasks
+     * that are no longer experiencing BP and able to receive new messages.
      */
     @isInteger
     @isPositiveNumber
@@ -643,7 +660,7 @@ public class Config extends HashMap<String, Object> {
     @isInteger
     public static final String TOPOLOGY_ERROR_THROTTLE_INTERVAL_SECS = "topology.error.throttle.interval.secs";
     /**
-     * See doc for TOPOLOGY_ERROR_THROTTLE_INTERVAL_SECS
+     * See doc for TOPOLOGY_ERROR_THROTTLE_INTERVAL_SECS.
      */
     @isInteger
     @isPositiveNumber
@@ -669,12 +686,12 @@ public class Config extends HashMap<String, Object> {
      * Name of the topology. This config is automatically set by Storm when the topology is submitted.
      */
     @isString
-    public final static String TOPOLOGY_NAME = "topology.name";
+    public static final String TOPOLOGY_NAME = "topology.name";
     /**
-     * The principal who submitted a topology
+     * The principal who submitted a topology.
      */
     @isString
-    public final static String TOPOLOGY_SUBMITTER_PRINCIPAL = "topology.submitter.principal";
+    public static final String TOPOLOGY_SUBMITTER_PRINCIPAL = "topology.submitter.principal";
     /**
      * The local user name of the user who submitted a topology.
      */
@@ -686,7 +703,7 @@ public class Config extends HashMap<String, Object> {
     @isStringList
     public static final String TOPOLOGY_AUTO_CREDENTIALS = "topology.auto-credentials";
     /**
-     * Max pending tuples in one ShellBolt
+     * Max pending tuples in one ShellBolt.
      */
     @NotNull
     @isInteger
@@ -705,7 +722,7 @@ public class Config extends HashMap<String, Object> {
     @isString(acceptedValues = { "S0", "S1", "S2", "S3" })
     public static final String TOPOLOGY_LOGGING_SENSITIVITY = "topology.logging.sensitivity";
     /**
-     * Sets the priority for a topology
+     * Sets the priority for a topology.
      */
     @isInteger
     @isPositiveNumber(includeZero = true)
@@ -754,14 +771,14 @@ public class Config extends HashMap<String, Object> {
     @isPositiveNumber(includeZero = true)
     public static final String TOPOLOGY_SPOUT_WAIT_PARK_MICROSEC = "topology.spout.wait.park.microsec";
     /**
-     * Configures number of iterations to spend in level 1 of WaitStrategyProgressive, before progressing to level 2
+     * Configures number of iterations to spend in level 1 of WaitStrategyProgressive, before progressing to level 2.
      */
     @NotNull
     @isInteger
     @isPositiveNumber(includeZero = true)
     public static final String TOPOLOGY_SPOUT_WAIT_PROGRESSIVE_LEVEL1_COUNT = "topology.spout.wait.progressive.level1.count";
     /**
-     * Configures number of iterations to spend in level 2 of WaitStrategyProgressive, before progressing to level 3
+     * Configures number of iterations to spend in level 2 of WaitStrategyProgressive, before progressing to level 3.
      */
     @NotNull
     @isInteger
@@ -786,14 +803,14 @@ public class Config extends HashMap<String, Object> {
     @isPositiveNumber(includeZero = true)
     public static final String TOPOLOGY_BOLT_WAIT_PARK_MICROSEC = "topology.bolt.wait.park.microsec";
     /**
-     * Configures number of iterations to spend in level 1 of WaitStrategyProgressive, before progressing to level 2
+     * Configures number of iterations to spend in level 1 of WaitStrategyProgressive, before progressing to level 2.
      */
     @NotNull
     @isInteger
     @isPositiveNumber(includeZero = true)
     public static final String TOPOLOGY_BOLT_WAIT_PROGRESSIVE_LEVEL1_COUNT = "topology.bolt.wait.progressive.level1.count";
     /**
-     * Configures number of iterations to spend in level 2 of WaitStrategyProgressive, before progressing to level 3
+     * Configures number of iterations to spend in level 2 of WaitStrategyProgressive, before progressing to level 3.
      */
     @NotNull
     @isInteger
@@ -928,7 +945,7 @@ public class Config extends HashMap<String, Object> {
     @isNumber
     public static final String STORM_NIMBUS_RETRY_INTERVAL_CEILING = "storm.nimbus.retry.intervalceiling.millis";
     /**
-     * The Nimbus transport plug-in for Thrift client/server communication
+     * The Nimbus transport plug-in for Thrift client/server communication.
      */
     @isString
     public static final String NIMBUS_THRIFT_TRANSPORT_PLUGIN = "nimbus.thrift.transport";
@@ -970,7 +987,7 @@ public class Config extends HashMap<String, Object> {
     @isInteger
     public static final String STORM_THRIFT_SOCKET_TIMEOUT_MS = "storm.thrift.socket.timeout.ms";
     /**
-     * The DRPC transport plug-in for Thrift client/server communication
+     * The DRPC transport plug-in for Thrift client/server communication.
      */
     @isString
     public static final String DRPC_THRIFT_TRANSPORT_PLUGIN = "drpc.thrift.transport";
@@ -981,13 +998,13 @@ public class Config extends HashMap<String, Object> {
     @isPositiveNumber
     public static final String DRPC_PORT = "drpc.port";
     /**
-     * DRPC thrift server queue size
+     * DRPC thrift server queue size.
      */
     @isInteger
     @isPositiveNumber
     public static final String DRPC_QUEUE_SIZE = "drpc.queue.size";
     /**
-     * DRPC thrift server worker threads
+     * DRPC thrift server worker threads.
      */
     @isInteger
     @isPositiveNumber
@@ -999,12 +1016,12 @@ public class Config extends HashMap<String, Object> {
     @isPositiveNumber
     public static final String DRPC_MAX_BUFFER_SIZE = "drpc.max_buffer_size";
     /**
-     * The DRPC invocations transport plug-in for Thrift client/server communication
+     * The DRPC invocations transport plug-in for Thrift client/server communication.
      */
     @isString
     public static final String DRPC_INVOCATIONS_THRIFT_TRANSPORT_PLUGIN = "drpc.invocations.thrift.transport";
     /**
-     * DRPC invocations thrift server worker threads
+     * DRPC invocations thrift server worker threads.
      */
     @isInteger
     @isPositiveNumber
@@ -1017,7 +1034,7 @@ public class Config extends HashMap<String, Object> {
     @isType(type = Map.class)
     public static final String STORM_GROUP_MAPPING_SERVICE_PARAMS = "storm.group.mapping.service.params";
     /**
-     * The default transport plug-in for Thrift client/server communication
+     * The default transport plug-in for Thrift client/server communication.
      */
     @isString
     public static final String STORM_THRIFT_TRANSPORT_PLUGIN = "storm.thrift.transport";
@@ -1201,6 +1218,26 @@ public class Config extends HashMap<String, Object> {
      */
     @isPositiveNumber
     public static final String SUPERVISOR_CPU_CAPACITY = "supervisor.cpu.capacity";
+
+    /**
+     * The total amount of bandwidth (in mbps) a supervisor is allowed to give to its workers.
+     *  A default value will be set for this config if user does not override
+     */
+    @isPositiveNumber
+    public static final String SUPERVISOR_BANDWIDTH_CAPACITY_MBPS = "supervisor.bandwidth.capacity.mbps";
+
+    /**
+     *  NICs a supervisor would be control in bandwidth resource.
+     */
+    @isStringList
+    public static final String SUPERVISOR_CONTROL_NICS_EXCLUDE = "supervisor.control.NICs.exclude";
+
+    /**
+     *  tc class a supervisor would not be used in bandwidth control.
+     */
+    @isStringList
+    public static final String SUPERVISOR_TC_CLASS_EXCLUDE = "supervisor.tc.class.exclude";
+
     @isInteger
     @isPositiveNumber
     /**
@@ -1631,6 +1668,14 @@ public class Config extends HashMap<String, Object> {
 
     public static void setNumWorkers(Map<String, Object> conf, int workers) {
         conf.put(Config.TOPOLOGY_WORKERS, workers);
+    }
+
+    public static void setWorkerMaxBandwidthMbps(Map<String, Object> conf, int mbps) {
+        conf.put(Config.TOPOLOGY_WORKER_MAX_BANDWIDTH_MBPS, mbps);
+    }
+
+    public void setWorkerMaxBandwidthMbps(int mbps) {
+        setWorkerMaxBandwidthMbps(this, mbps);
     }
 
     public static void setNumAckers(Map<String, Object> conf, int numExecutors) {

@@ -16,10 +16,13 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import org.apache.storm.Config;
 import org.apache.storm.container.cgroup.CgroupCenter;
 import org.apache.storm.container.cgroup.CgroupCoreFactory;
+import org.apache.storm.container.cgroup.SubSystem;
 import org.apache.storm.container.cgroup.SubSystemType;
 import org.apache.storm.container.cgroup.core.CgroupCore;
 import org.apache.storm.metric.api.IMetric;
@@ -34,6 +37,17 @@ public abstract class CGroupMetricsBase<T> implements IMetric {
     private boolean enabled;
     private CgroupCore core = null;
 
+    private static final String STORM_CGROUP_RESOURCES = "storm.cgroup.resources";
+
+    private boolean isSubSystemEnabled(Map<String, Object> conf, SubSystemType type) {
+        for (String entry : (List<String>)conf.getOrDefault(STORM_CGROUP_RESOURCES, new ArrayList<String>())) {
+            if (entry.equals(type.name())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public CGroupMetricsBase(Map<String, Object> conf, SubSystemType type) {
         final String simpleName = getClass().getSimpleName();
         enabled = false;
@@ -43,6 +57,10 @@ public abstract class CGroupMetricsBase<T> implements IMetric {
             return;
         }
         if (!center.isSubSystemEnabled(type)) {
+            LOG.warn("{} is disabled. {} is not an enabled subsystem", simpleName, type);
+            return;
+        }
+        if (!isSubSystemEnabled(conf,type)) {
             LOG.warn("{} is disabled. {} is not an enabled subsystem", simpleName, type);
             return;
         }
@@ -79,7 +97,8 @@ public abstract class CGroupMetricsBase<T> implements IMetric {
             //parts[0] == 0 for CGroup V2, else maps to hierarchy in /proc/cgroups
             //parts[1] is empty for CGroups V2 else what is mapped that we are looking for
             String cgroupPath = parts[2];
-            core = CgroupCoreFactory.getInstance(type, new File(hierarchyDir, cgroupPath).getAbsolutePath());
+            String fullPath = hierarchyDir + "/" + type.name() + "/" + cgroupPath;
+            core = CgroupCoreFactory.getInstance(type, new File(fullPath).getAbsolutePath());
         } catch (Exception e) {
             LOG.warn("{} is disabled error trying to read or parse {}", simpleName, cgroupFile);
             return;
