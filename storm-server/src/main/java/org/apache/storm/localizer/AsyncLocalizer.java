@@ -329,32 +329,58 @@ public class AsyncLocalizer implements AutoCloseable {
         }
     }
 
+    private boolean isTopoCodeBlobFullyDownloaded(String topologyId) throws IOException {
+        String topoCodeKey = ConfigUtils.masterStormCodeKey(topologyId);
+        LocallyCachedBlob topoCode = topologyBlobs.get(topoCodeKey);
+        if (topoCode != null) {
+            return topoCode.isFullyDownloaded();
+        }else {
+            return false;
+        }
+    }
+
+    private boolean isTopoConfBlobFullyDownloaded(String topologyId) throws IOException {
+        String topoConfKey = ConfigUtils.masterStormConfKey(topologyId);
+        LocallyCachedBlob topoConf = topologyBlobs.get(topoConfKey);
+        if (topoConf != null) {
+            return topoConf.isFullyDownloaded();
+        }else {
+            return false;
+        }
+    }
+
     private List<LocalResource> getLocalResources(PortAndAssignment pna) throws IOException {
         String topologyId = pna.getToplogyId();
-        Map<String, Object> topoConf = ConfigUtils.readSupervisorStormConf(conf, topologyId);
-
-        @SuppressWarnings("unchecked")
-        Map<String, Map<String, Object>> blobstoreMap = (Map<String, Map<String, Object>>) topoConf.get(Config.TOPOLOGY_BLOBSTORE_MAP);
-
         List<LocalResource> ret = new ArrayList<>();
-        if (blobstoreMap != null) {
-            List<LocalResource> tmp = SupervisorUtils.blobstoreMapToLocalresources(blobstoreMap);
-            if (tmp != null) {
-                ret.addAll(tmp);
+
+        if(isTopoConfBlobFullyDownloaded(topologyId)) {
+            Map<String, Object> topoConf = ConfigUtils.readSupervisorStormConf(conf, topologyId);
+
+            @SuppressWarnings("unchecked")
+            Map<String, Map<String, Object>> blobstoreMap = (Map<String, Map<String, Object>>) topoConf.get(Config.TOPOLOGY_BLOBSTORE_MAP);
+
+            if (blobstoreMap != null) {
+                List<LocalResource> tmp = SupervisorUtils.blobstoreMapToLocalresources(blobstoreMap);
+                if (tmp != null) {
+                    ret.addAll(tmp);
+                }
             }
         }
 
-        StormTopology stormCode = ConfigUtils.readSupervisorTopology(conf, topologyId, fsOps);
-        List<String> dependencies = new ArrayList<>();
-        if (stormCode.is_set_dependency_jars()) {
-            dependencies.addAll(stormCode.get_dependency_jars());
+        if(isTopoCodeBlobFullyDownloaded(topologyId)) {
+            StormTopology stormCode = ConfigUtils.readSupervisorTopology(conf, topologyId, fsOps);
+            List<String> dependencies = new ArrayList<>();
+            if (stormCode.is_set_dependency_jars()) {
+                dependencies.addAll(stormCode.get_dependency_jars());
+            }
+            if (stormCode.is_set_dependency_artifacts()) {
+                dependencies.addAll(stormCode.get_dependency_artifacts());
+            }
+            for (String dependency : dependencies) {
+                ret.add(new LocalResource(dependency, false, true));
+            }
         }
-        if (stormCode.is_set_dependency_artifacts()) {
-            dependencies.addAll(stormCode.get_dependency_artifacts());
-        }
-        for (String dependency : dependencies) {
-            ret.add(new LocalResource(dependency, false, true));
-        }
+
         return ret;
     }
 
